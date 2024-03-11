@@ -8,8 +8,10 @@ import Icon from "@/components/ui/Icon";
 import { ImagePicker } from "@/components/ui/ImagePicker";
 import TextInput from "@/components/ui/TextInput";
 import { PlatformDropdownType, options } from "@/config/platforms";
+import { DndContext } from "@/dnd/dnd";
 import { useLinkStoreActions, useLinkStoreData } from "@/store/link-store";
 import { useTabStoreData } from "@/store/tab-store";
+import { Draggable, DropResult, Droppable } from "@hello-pangea/dnd";
 import { useState } from "react";
 
 export default function Home() {
@@ -17,7 +19,8 @@ export default function Home() {
   const [selectedImage, setSelectedImage] = useState<File>();
 
   const { links, hasHydrated } = useLinkStoreData();
-  const { addLink, removeLink, updateLink } = useLinkStoreActions();
+  const { addLink, removeLink, updateLink, reorderLinks } =
+    useLinkStoreActions();
 
   const { activeTab } = useTabStoreData();
 
@@ -30,6 +33,27 @@ export default function Home() {
   if (!hasHydrated) return <></>;
 
   let pageContent: React.ReactNode;
+
+  const onDragEnd = (result: DropResult) => {
+    const { source, destination } = result;
+
+    if (!destination) return;
+
+    if (
+      destination.droppableId === source.droppableId &&
+      destination.index === source.index
+    ) {
+      return;
+    }
+
+    const newLinkList = structuredClone(links);
+
+    const [removed] = newLinkList.splice(source.index, 1);
+
+    newLinkList.splice(destination.index, 0, removed);
+
+    reorderLinks(newLinkList);
+  };
 
   if (activeTab === "links") {
     pageContent = (
@@ -69,57 +93,99 @@ export default function Home() {
         )}
 
         <div className="overflow-scroll flex-1 p-10 py-3">
-          {links.map((link, index) => {
-            return (
-              <div className="bg-gray-50 p-5 rounded-xl my-6" key={link.id}>
-                <div className="flex items-center justify-between">
-                  <p className="text-grey font-bold">Link {`#${index + 1}`}</p>
-                  <Button
-                    variant="ghost"
-                    size="small"
-                    onClick={() => {
-                      removeLink(link.id);
-                    }}
-                  >
-                    Remove
-                  </Button>
-                </div>
-                <div className="gap-y-5 flex flex-col mt-3">
-                  <Dropdown
-                    options={options}
-                    selectedOption={link.platform}
-                    handleSelectOption={(option: PlatformDropdownType) => {
-                      updateLink({
-                        linkId: link.id,
-                        platform: option,
-                        updateType: "select"
-                      });
-                    }}
-                    label="Platform"
-                  />
-                  <TextInput
-                    id={`platformLink-${link.id}`}
-                    placeholder="Enter platform link"
-                    label="Link"
-                    renderIcon={() => (
-                      <Icon
-                        name="link"
-                        className="absolute top-1/2 left-4 transform -translate-y-1/2"
-                      />
-                    )}
-                    className="w-full"
-                    onChange={(e) => {
-                      updateLink({
-                        linkId: link.id,
-                        platformLink: e.target.value,
-                        updateType: "text"
-                      });
-                    }}
-                  />
-                </div>
-              </div>
-            );
-          })}
+          <DndContext onDragEnd={onDragEnd}>
+            {links.map((link, index) => {
+              return (
+                <Droppable key={index} droppableId={`droppable${index}`}>
+                  {(provided) => (
+                    <div
+                      className="w-full bg-white"
+                      {...provided.droppableProps}
+                      ref={provided.innerRef}
+                    >
+                      <Draggable
+                        key={link.rectangle.id}
+                        draggableId={link.rectangle.id.toString()}
+                        index={index}
+                      >
+                        {(provided) => (
+                          <div
+                            {...provided.dragHandleProps}
+                            {...provided.draggableProps}
+                            ref={provided.innerRef}
+                          >
+                            <div
+                              className="bg-gray-50 p-5 rounded-xl my-6"
+                              key={link.id}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-x-2">
+                                  <Icon
+                                    name="drag-and-drop"
+                                    className="mt-2 cursor-pointer"
+                                  />
+                                  <p className="text-grey font-bold">
+                                    Link {`#${index + 1}`}
+                                  </p>
+                                </div>
+                                <Button
+                                  variant="ghost"
+                                  size="small"
+                                  onClick={() => {
+                                    removeLink(link.id);
+                                  }}
+                                >
+                                  Remove
+                                </Button>
+                              </div>
+                              <div className="gap-y-5 flex flex-col mt-3">
+                                <Dropdown
+                                  options={options}
+                                  selectedOption={link.platform}
+                                  handleSelectOption={(
+                                    option: PlatformDropdownType
+                                  ) => {
+                                    updateLink({
+                                      linkId: link.id,
+                                      platform: option,
+                                      updateType: "select"
+                                    });
+                                  }}
+                                  label="Platform"
+                                />
+                                <TextInput
+                                  name="platformLink"
+                                  id={`platformLink-${link.id}`}
+                                  placeholder="Enter platform link"
+                                  label="Link"
+                                  renderIcon={() => (
+                                    <Icon
+                                      name="link"
+                                      className="absolute top-1/2 left-4 transform -translate-y-1/2"
+                                    />
+                                  )}
+                                  value={link.platformLink}
+                                  className="w-full"
+                                  onChange={(e) => {
+                                    updateLink({
+                                      linkId: link.id,
+                                      platformLink: e.target.value,
+                                      updateType: "text"
+                                    });
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </Draggable>
+                      {provided.placeholder}
+                    </div>
+                  )}
+                </Droppable>
+              );
+            })}
+          </DndContext>
         </div>
       </>
     );

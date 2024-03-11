@@ -25,6 +25,7 @@ type LinkStore = {
     updateLink: (data: UpdateLinkProps) => void;
     removeLink: (linkId: string) => void;
     setHasHydrated: (isHydrated: boolean) => void;
+    reorderLinks: (links: Link[]) => void;
   };
 };
 
@@ -39,6 +40,22 @@ const useLinkStore = create(
             set(() => ({
               hasHydrated: isHydrated
             }));
+          },
+
+          reorderLinks: (newLinks) => {
+            set(() => {
+              const reorderedLinks = newLinks.map((item, index) => ({
+                ...item,
+                rectangle: {
+                  ...item.rectangle,
+                  y: 278 + index * 64
+                }
+              }));
+
+              return {
+                links: reorderedLinks
+              };
+            });
           },
 
           addLink: () => {

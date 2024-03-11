@@ -16,7 +16,11 @@ export const Tabs = ({ tabs, selectedTab, handleSelectTab }: TabsProps) => {
           className={`text-heading-s px-7 py-3 rounded-md cursor-pointer hover:text-purple flex items-center gap-2 ${
             selectedTab === item.id && "bg-lightPurple text-purple"
           }`}
-          onClick={() => handleSelectTab(item.id)}
+          onClick={() => {
+            if (selectedTab === item.id) return;
+
+            handleSelectTab(item.id);
+          }}
         >
           {item.icon && (
             <Icon
